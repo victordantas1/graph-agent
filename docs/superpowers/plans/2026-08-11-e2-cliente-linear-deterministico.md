@@ -141,7 +141,25 @@ LANGFUSE_BASE_URL="https:/localhost:5000"
 LINEAR_API_KEY="lin_api_"
 ```
 
-Confira com `git diff .env.template`: o diff tem que ser de **uma** linha adicionada e nenhuma removida. Se aparecer linha removida, você reescreveu o arquivo — desfaça com `git checkout .env.template` e refaça acrescentando.
+Confira com `git diff .env.template`. **Espere `2 insertions(+), 1 deletion(-)`**, não uma linha adicionada e nenhuma removida: o arquivo não termina em newline, e quando um arquivo assim ganha uma linha o git renderiza a última linha antiga como removida e re-adicionada, porque o marcador `\ No newline at end of file` mudou de posição. Isso não é remoção de conteúdo.
+
+A verificação que de fato prova a preservação olha só as linhas de conteúdo do diff:
+
+```bash
+git diff -- .env.template | grep -E '^[+-][^+-]'
+```
+
+Esperado, exatamente estas três linhas:
+
+```
+-LANGFUSE_BASE_URL="https:/localhost:5000"
++LANGFUSE_BASE_URL="https:/localhost:5000"
++LINEAR_API_KEY="lin_api_"
+```
+
+A linha removida é idêntica a uma das adicionadas — é o marcador de newline se mexendo, não conteúdo indo embora. Se qualquer outra linha aparecer com `-`, ou se o `https:/` (uma barra só) mudar, você reescreveu o arquivo: desfaça com `git checkout .env.template` e refaça acrescentando.
+
+**Não tente conferir por contagem de bytes no working tree.** Este repositório está com `core.autocrlf = true`: o arquivo no disco tem CRLF e o blob no git tem LF, então `wc -c` e `head -c` no working tree dão números que não batem com o commit.
 
 - [ ] **Passo 3: Escrever o dublê do endpoint**
 

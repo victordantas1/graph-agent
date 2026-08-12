@@ -1,0 +1,40 @@
+[project]
+name = "sentinela-graph-agent"
+version = "0.1.0"
+description = "Grafo de agentes que leva uma issue do Linear ate um MR aberto"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "langgraph>=1.2,<2",
+    "langgraph-checkpoint-sqlite>=3.1,<4",
+    "claude-agent-sdk>=0.2.136",
+    "pydantic>=2.13,<3",
+    "httpx>=0.28",
+    "langfuse>=4.14,<5",
+    "typer>=0.27",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4",
+    "ruff>=0.14",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/sentinela_graph"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+exclude = ["docs/"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]

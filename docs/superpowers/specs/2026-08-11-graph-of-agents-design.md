@@ -5,8 +5,9 @@
 
 ## Objetivo
 
-Um grafo de agentes que leva uma issue da fila `Ready` do Linear até um Merge Request
-aberto no GitLab, **sem intervenção humana durante a execução**. O humano escreve a spec
+Um grafo de agentes que leva uma issue do Linear — status **`To Do`** e label **`Ready`**,
+as duas condições obrigatórias — até um Merge Request aberto no GitLab, **sem intervenção
+humana durante a execução**. O humano escreve a spec
 detalhada na issue; o grafo planeja, implementa em TDD, valida de forma adversarial e
 abre o MR, reportando cada etapa de volta na issue.
 

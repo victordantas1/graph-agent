@@ -54,6 +54,13 @@ def test_verdict_de_agente_desconhecido_e_rejeitado():
         Verdict(agente="implement", attempt=0, aprovado=True, evidencia="e")
 
 
+def test_verdict_sem_evidencia_e_rejeitado():
+    # A secao "Verificacao executada" do MR e construida a partir da
+    # evidencia; vazia, ela renderiza uma alegacao vazia.
+    with pytest.raises(ValidationError):
+        Verdict(agente="review_adv", attempt=0, aprovado=True, evidencia="")
+
+
 def test_verdict_round_trip():
     veredito = Verdict(
         agente="review_adv",

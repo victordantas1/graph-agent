@@ -17,10 +17,19 @@ class GateResult(BaseModel):
     def _truncar(cls, valor: str) -> str:
         # A saida entra no checkpoint e volta como contexto para o
         # implementador. Log de suite inteira estoura os dois.
+        #
+        # O validador roda em todo model_validate, inclusive na volta do
+        # checkpoint: o resultado tem que ser <= LIMITE_SAIDA no total, senao
+        # revalidar um valor ja truncado corta de novo. O tamanho do corte
+        # usa len(valor) como teto seguro para a contagem de omitidos — o
+        # tamanho real do marcador depende de quantos caracteres foram
+        # cortados, que depende de onde se corta, entao usar o pior caso
+        # evita a dependencia circular sem nunca estourar o limite.
         if len(valor) <= LIMITE_SAIDA:
             return valor
-        cortado = len(valor) - LIMITE_SAIDA
-        return f"{valor[:LIMITE_SAIDA]}\n[... truncado, {cortado} caracteres ...]"
+        corte = LIMITE_SAIDA - len(f"\n[... truncado, {len(valor)} caracteres ...]")
+        omitidos = len(valor) - corte
+        return f"{valor[:corte]}\n[... truncado, {omitidos} caracteres ...]"
 
 
 class GateReport(BaseModel):

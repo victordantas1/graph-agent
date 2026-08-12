@@ -12,8 +12,26 @@ def test_gate_result_round_trip():
 def test_saida_gigante_e_truncada():
     # A saida entra no checkpoint e volta para o implementador como contexto.
     resultado = GateResult(comando="npx jest", passou=False, saida="x" * (LIMITE_SAIDA + 500))
-    assert len(resultado.saida) < LIMITE_SAIDA + 200
+    assert len(resultado.saida) <= LIMITE_SAIDA
     assert "truncado" in resultado.saida
+
+
+def test_truncamento_e_ponto_fixo_no_round_trip():
+    # `_truncar` roda em todo model_validate, inclusive na volta do
+    # checkpoint. Se o resultado ja truncado nao for estavel, cada
+    # `--resume` corta um pouco mais o log que o implementador ve.
+    resultado = GateResult(comando="npx jest", passou=False, saida="x" * (LIMITE_SAIDA + 500))
+    assert GateResult.model_validate_json(resultado.model_dump_json()) == resultado
+
+
+def test_truncamento_relata_contagem_condizente_com_a_entrada():
+    # Para uma entrada de LIMITE_SAIDA + 500 caracteres, a contagem de
+    # omitidos deve ficar na casa das centenas, nao das dezenas: um bug de
+    # ponto fixo faz o marcador convergir para um numero bem menor.
+    resultado = GateResult(comando="npx jest", passou=False, saida="x" * (LIMITE_SAIDA + 500))
+    marcador = resultado.saida.rsplit("truncado, ", 1)[1]
+    omitidos = int(marcador.split(" ")[0])
+    assert omitidos >= 400
 
 
 def test_relatorio_verde():

@@ -71,3 +71,36 @@ def test_relacao_com_tipo_invalido_e_rejeitada():
             url="u",
             tipo="duplicada",
         )
+
+
+def test_issue_ref_com_comentarios_e_relacoes_round_trip():
+    # comments e relations sao os campos com datetime aware; e o round-trip
+    # via JSON que o checkpointer depende de preservar.
+    issue = _issue(
+        comments=[
+            Comment(
+                id="c1",
+                author="victor",
+                body="primeiro",
+                created_at=datetime(2026, 8, 1, tzinfo=UTC),
+            ),
+            Comment(
+                id="c2",
+                author="victor",
+                body="segundo",
+                created_at=datetime(2026, 8, 2, tzinfo=UTC),
+            ),
+        ],
+        relations=[
+            IssueRelation(
+                identifier="NOM-643",
+                title="Adicionar Langfuse ao pacote base",
+                state="Done",
+                url="https://linear.app/nomos/issue/NOM-643",
+                tipo="parent",
+            )
+        ],
+    )
+    restaurada = IssueRef.model_validate_json(issue.model_dump_json())
+    assert restaurada == issue
+    assert restaurada.comments[0].created_at.tzinfo is not None

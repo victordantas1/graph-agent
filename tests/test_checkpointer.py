@@ -1,10 +1,11 @@
 import logging
+from datetime import UTC, datetime
 
 from langgraph.graph import END, START, StateGraph
 
 from sentinela_graph.checkpointer import build_checkpointer, config_da_issue
 from sentinela_graph.models.agent_outputs import Verdict
-from sentinela_graph.models.issue import IssueRef
+from sentinela_graph.models.issue import Comment, IssueRef, IssueRelation
 from sentinela_graph.models.routing import Routing
 from sentinela_graph.models.workspace import Workspace
 from sentinela_graph.state import GraphState
@@ -17,6 +18,29 @@ ISSUE = IssueRef(
     git_branch_name="victor/nom-716-langfuse",
     spec="Adicionar tracing por requisicao.",
     state="Doing",
+    comments=[
+        Comment(
+            id="c1",
+            author="victor",
+            body="comeca pelo modulo de tracing",
+            created_at=datetime(2026, 8, 1, 10, 0, tzinfo=UTC),
+        ),
+        Comment(
+            id="c2",
+            author="sentinela",
+            body="plano publicado",
+            created_at=datetime(2026, 8, 1, 11, 30, tzinfo=UTC),
+        ),
+    ],
+    relations=[
+        IssueRelation(
+            identifier="NOM-643",
+            title="Adicionar Langfuse ao pacote base",
+            state="Done",
+            url="https://linear.app/nomos/issue/NOM-643",
+            tipo="parent",
+        )
+    ],
 )
 ROUTING = Routing(
     repo="nomos-api",
@@ -83,6 +107,21 @@ def test_estado_sobrevive_ao_round_trip_pelo_sqlite_saver(tmp_path, caplog):
     assert restaurado.workspace.port == 4321
     assert {v.agente for v in restaurado.verdicts_da_tentativa(0)} == {"review_adv", "qa_func"}
     assert not [r for r in caplog.records if "unregistered type" in r.getMessage()]
+
+    # Comments e relations sao os campos que o fixture original deixava
+    # vazios: nunca chegavam ao SqliteSaver, entao um datetime aware que
+    # degradasse para naive na volta passava despercebido.
+    assert [c.id for c in restaurado.issue.comments] == ["c1", "c2"]
+    assert [c.body for c in restaurado.issue.comments] == [
+        "comeca pelo modulo de tracing",
+        "plano publicado",
+    ]
+    for original, restaurado_comentario in zip(
+        ISSUE.comments, restaurado.issue.comments, strict=True
+    ):
+        assert restaurado_comentario.created_at == original.created_at
+        assert restaurado_comentario.created_at.tzinfo is not None
+    assert [r.identifier for r in restaurado.issue.relations] == ["NOM-643"]
 
 
 def test_o_banco_e_criado_no_caminho_pedido(tmp_path):

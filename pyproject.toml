@@ -12,6 +12,7 @@ dependencies = [
     "httpx>=0.28",
     "langfuse>=4.14,<5",
     "typer>=0.27",
+    "python-dotenv>=1.1",
 ]
 
 [dependency-groups]

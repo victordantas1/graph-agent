@@ -69,6 +69,21 @@ O plano trata isso de frente, sem fingir que verificou:
 
 A Task 2 fica, portanto, **parcialmente entregue** ao fim deste plano em qualquer ambiente que não seja a máquina do Victor. As Tasks 1, 3, 4 e 5 fecham por completo, porque todas são testadas contra fixtures de git em `tmp_path`.
 
+## Lacuna conhecida da spec: `origin/<branch>` preexistente
+
+Levantada na revisão final da E3. **Não é defeito de implementação** — o código faz exatamente o que a spec manda na linha 142, e por isso não foi "corrigido" aqui.
+
+`prepare_workspace` cria a branch com `git worktree add <path> -b <branch> origin/<base>` quando ela ainda não existe localmente. O teste é sobre a branch **local**: se `refs/heads/<branch>` não existe, parte-se de `origin/<base>`. Isso ignora em silêncio um `refs/remotes/origin/<branch>` que já exista.
+
+Acontece em dois cenários reais: um clone novo do repo canônico, ou alguém que apagou a branch local à mão depois de um run anterior ter empurrado trabalho. Nos dois, o grafo ramifica da base enquanto existe trabalho no remoto — e o `git push -u origin <branch>` da E9 é recusado como non-fast-forward, no fim do run, depois de gastar uma sessão inteira de `implement`.
+
+Duas saídas, e a escolha é da E9, não desta épica:
+
+1. Checar `refs/remotes/origin/<branch>` no `prepare_workspace` e partir dele quando existir — o mais próximo do que um humano faria.
+2. Falhar cedo e determinístico, obrigando o operador a decidir se retoma ou descarta o trabalho remoto.
+
+A opção 2 é mais conservadora e combina com o resto da E3, onde ambiguidade vira erro em vez de aposta. Fica registrada para o plano da E9 escolher com o contexto de `open_mr` na mão.
+
 ## File Structure
 
 | arquivo | responsabilidade |

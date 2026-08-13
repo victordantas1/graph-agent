@@ -1948,7 +1948,10 @@ def test_diff_real_contra_origin_encontra_o_arquivo_commitado(nomos):
     alvo.write_text("export const nota = 1;\n")
     (ws.worktree_path / "app" / "src" / "nota.spec.ts").write_text("it('n', () => {});\n")
 
-    git("add", "-A", cwd=ws.worktree_path)
+    # `app/.env` esta presente e untracked por design (copy_untracked); `-A`
+    # o varreria pra dentro do commit, exatamente o motivo pelo qual a spec
+    # proibe `-A` no `open_mr` — add caminho a caminho.
+    git("add", "--", "app/src/nota.ts", "app/src/nota.spec.ts", cwd=ws.worktree_path)
     git("commit", "-m", "feat: nota", cwd=ws.worktree_path)
 
     tocados = arquivos_tocados(repo, ws.worktree_path, run=run_command)

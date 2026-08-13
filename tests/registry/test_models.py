@@ -57,6 +57,18 @@ def test_qa_mode_none_sem_serve_nem_health_carrega():
     assert cfg.serve is None
 
 
+def test_serve_vazio_e_rejeitado():
+    # Uma string vazia nao e um comando: shlex.split("") vira argv vazio e
+    # so quebra dentro do run_command, no meio do run (task #21).
+    with pytest.raises(ValidationError):
+        repo_config(serve="")
+
+
+def test_health_vazio_e_rejeitado():
+    with pytest.raises(ValidationError):
+        repo_config(health="")
+
+
 def test_health_sem_placeholder_de_porta_e_rejeitado():
     # A porta e alocada dinamicamente; porta fixa passaria aqui e
     # quebraria no serve_app.

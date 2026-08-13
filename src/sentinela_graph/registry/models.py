@@ -44,8 +44,8 @@ class RepoConfig(BaseModel):
     # Relativos a raiz do repo. Sem eles o install nao roda.
     copy_untracked: list[str] = Field(default_factory=list)
     qa_mode: QaMode
-    serve: str | None = None
-    health: str | None = None
+    serve: str | None = Field(default=None, min_length=1)
+    health: str | None = Field(default=None, min_length=1)
     # Divergencias entre o CLAUDE.md e a realidade moram aqui (task #22).
     notas: str = Field(min_length=1)
 

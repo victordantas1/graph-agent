@@ -1,0 +1,144 @@
+# Registry dos repos da Nomos.
+#
+# root/base/forge/test/qa_mode vem da spec
+# (docs/superpowers/specs/2026-08-11-graph-of-agents-design.md, secao
+# "Registry de repos") e sao normativos.
+#
+# install/build/lint/format_check/copy_untracked/serve/health so valem
+# depois de executados no repo canonico. Ate la, `notas` comeca com
+# "NAO VERIFICADO". Ver docs/superpowers/plans/2026-08-13-e3-registry-de-repos-e-worktree.md
+# Task 2, Step 6.
+
+nomos_root: /home/victor/nomos
+
+repos:
+  nomos-api:
+    root: app
+    base: develop
+    forge: glab
+    install: npm ci
+    build: npm run build
+    lint: npm run lint
+    format_check: npx prettier --check .
+    test: npx jest {arquivo}
+    test_patterns:
+      - "{dir}/{stem}.spec.ts"
+      - "{dir}/__tests__/{stem}.spec.ts"
+      - "{dir}/{stem}.spec.js"
+    copy_untracked:
+      - app/.env
+    qa_mode: http
+    serve: npm run start:dev
+    health: http://127.0.0.1:{port}/health
+    notas: >-
+      NAO VERIFICADO. Comandos inferidos do CLAUDE.md, sem execucao.
+      Pendente: o nome real do service account JSON em app/ (a spec cita
+      service accounts untracked circulando em nomos-api/app/) e a rota
+      real de healthcheck.
+
+  nomos.pro:
+    root: .
+    base: develop
+    forge: glab
+    install: yarn install --frozen-lockfile
+    build: yarn build
+    lint: yarn lint
+    format_check: npx prettier --check src
+    # CRA roda em watch por padrao; sem --watchAll=false o gate nunca termina.
+    test: yarn test --watchAll=false {arquivo}
+    test_patterns:
+      - "{dir}/{stem}.test.tsx"
+      - "{dir}/{stem}.test.ts"
+      - "{dir}/{stem}.spec.tsx"
+      - "{dir}/__tests__/{stem}.test.tsx"
+    copy_untracked:
+      - .env
+    qa_mode: playwright
+    serve: yarn start
+    health: http://127.0.0.1:{port}/
+    notas: >-
+      NAO VERIFICADO. CRA com react-app-rewired; confirmar se `yarn start`
+      respeita PORT e se existe script `lint`.
+
+  monitor-search:
+    root: app
+    base: develop
+    forge: glab
+    install: npm ci
+    build: npm run build
+    lint: npm run lint
+    format_check: npx prettier --check .
+    test: npm test {arquivo}
+    test_patterns:
+      - "{dir}/{stem}.test.js"
+      - "{dir}/__tests__/{stem}.test.js"
+      - "{dir}/{stem}.spec.js"
+    copy_untracked:
+      - app/.env
+    qa_mode: none
+    notas: >-
+      NAO VERIFICADO. Cloud Function com handler CloudEvent
+      (exports.entrypoint); sem endpoint, qa_mode=none por decisao da spec.
+      Confirmar se existe script `build`.
+
+  gov-open-data:
+    root: app
+    base: develop
+    forge: glab
+    install: npm ci
+    build: npm run build
+    lint: npm run lint
+    format_check: npx prettier --check .
+    test: npm test {arquivo}
+    test_patterns:
+      - "{dir}/{stem}.test.js"
+      - "{dir}/__tests__/{stem}.test.js"
+      - "{dir}/{stem}.spec.js"
+    copy_untracked:
+      - app/.env
+    qa_mode: none
+    notas: >-
+      NAO VERIFICADO. Mesma forma do monitor-search. Confirmar service
+      account JSON usado pelas credenciais do GCP.
+
+  official-diaries:
+    root: .
+    base: develop
+    forge: glab
+    install: uv sync
+    build: uv run python -c pass
+    lint: uv run ruff check
+    format_check: uv run ruff format --check .
+    test: uv run pytest {arquivo}
+    test_patterns:
+      - "{dir}/test_{stem}.py"
+      - "tests/test_{stem}.py"
+    copy_untracked:
+      - .env
+    qa_mode: none
+    notas: >-
+      NAO VERIFICADO. Python functions_framework.http, mas o CLAUDE.md do
+      repo declara "desenvolvimento: nao existe - e fica assim, por decisao
+      do time", entao qa_mode=none. `build` e um no-op porque nao ha etapa
+      de build; confirmar se o repo usa uv ou requirements.txt.
+
+  nomos-tldr:
+    root: .
+    base: main
+    forge: gh
+    install: npm ci
+    build: npm run build
+    lint: npm run lint
+    format_check: npx prettier --check .
+    test: npx jest {arquivo}
+    test_patterns:
+      - "{dir}/{stem}.spec.ts"
+      - "{dir}/{stem}.test.ts"
+      - "{dir}/__tests__/{stem}.spec.ts"
+    copy_untracked:
+      - .env
+    qa_mode: none
+    notas: >-
+      NAO VERIFICADO. Unico repo em main e na forja gh. Tem
+      docker-compose.yml, mas entra na v1 sem QA funcional por decisao da
+      spec.

@@ -69,6 +69,18 @@ O plano trata isso de frente, sem fingir que verificou:
 
 A Task 2 fica, portanto, **parcialmente entregue** ao fim deste plano em qualquer ambiente que não seja a máquina do Victor. As Tasks 1, 3, 4 e 5 fecham por completo, porque todas são testadas contra fixtures de git em `tmp_path`.
 
+## Aviso para quem for implementar a E5: os blocos de código são de antes da revisão final
+
+Os blocos de código das Tasks 1 a 5 mostram o que cada task **entregou**, e a revisão final da E3 alterou parte disso depois. O código de verdade está em `src/`, não aqui.
+
+A divergência que mais importa é o `CommandResult`: os blocos abaixo mostram `CommandResult(comando, exit_code, saida, timed_out)`, mas hoje ele é
+
+```python
+CommandResult(comando, exit_code, stdout="", stderr="", timed_out=False)
+```
+
+com `saida` virando propriedade derivada (`stdout + stderr`). Quem lê a saída **como dado** — lista de arquivos, `--porcelain` — tem que ler `stdout`; `saida` é a visão para humano. Ver o commit `d33b5d2`.
+
 ## Lacuna conhecida da spec: `origin/<branch>` preexistente
 
 Levantada na revisão final da E3. **Não é defeito de implementação** — o código faz exatamente o que a spec manda na linha 142, e por isso não foi "corrigido" aqui.

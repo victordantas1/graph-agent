@@ -9,6 +9,7 @@ dependencies = [
     "langgraph-checkpoint-sqlite>=3.1,<4",
     "claude-agent-sdk>=0.2.136",
     "pydantic>=2.13,<3",
+    "pyyaml>=6.0",
     "httpx>=0.28",
     "langfuse>=4.14,<5",
     "typer>=0.27",
@@ -30,6 +31,9 @@ packages = ["src/sentinela_graph"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+markers = [
+    "requires_nomos: exige os repos reais em nomos_root; pulado em qualquer outra maquina",
+]
 
 [tool.ruff]
 line-length = 100

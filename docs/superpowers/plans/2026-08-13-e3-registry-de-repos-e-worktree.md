@@ -668,10 +668,17 @@ def test_entrada_bate_com_a_tabela_da_spec(nome):
     root, base, forge, teste, qa_mode = TABELA[nome]
     cfg = REGISTRY.repo(nome)
     assert (cfg.root, cfg.base, cfg.forge, cfg.qa_mode) == (root, base, forge, qa_mode)
-    # O template pode ganhar flags (CI=true, --watchAll=false), mas o
-    # binario e o placeholder sao os da spec.
-    assert cfg.test.split()[0] == teste.split()[0]
+    # A spec e normativa sobre QUAL runner roda, nao sobre o wrapper
+    # (`uv run`) nem sobre flags obrigatorias (--watchAll=false, sem a qual
+    # o CRA fica em watch e o gate nunca termina). Entao os tokens da spec
+    # tem que aparecer em ordem dentro do template, nao serem iguais a ele.
+    assert _e_subsequencia(teste.split(), cfg.test.split()), cfg.test
     assert "{arquivo}" in cfg.test
+
+
+def _e_subsequencia(esperados: list[str], tokens: list[str]) -> bool:
+    restante = iter(tokens)
+    return all(token in restante for token in esperados)
 
 
 @pytest.mark.parametrize("nome", sorted(TABELA))

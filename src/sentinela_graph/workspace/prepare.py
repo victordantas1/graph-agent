@@ -11,7 +11,9 @@ from pathlib import Path
 from sentinela_graph.errors import WorkspaceError
 from sentinela_graph.models.workspace import Workspace
 from sentinela_graph.registry import Registry, RepoConfig
+from sentinela_graph.registry.models import ref_valida
 from sentinela_graph.shell import Runner, run_com_retry, run_command
+from sentinela_graph.workspace.lifecycle import podar_worktrees
 
 
 def prepare_workspace(
@@ -26,6 +28,15 @@ def prepare_workspace(
 
     `branch` e o `gitBranchName` da issue. Nunca derivado de titulo ou id.
     """
+    if not ref_valida(branch):
+        # Nao ha shell aqui, mas o parser do git le argv: uma branch
+        # comecando com '-' vira flag (`-b --help origin/develop`) e um
+        # espaco vira argumento extra. Barrado na fronteira, nao no comando.
+        raise WorkspaceError(
+            f"branch {branch!r} nao e um nome de branch valido; use apenas letras,"
+            " digitos e . _ / -, comecando por letra ou digito"
+        )
+
     canonico = registry.caminho_canonico(repo.nome)
     if not (canonico / ".git").exists():
         raise WorkspaceError(f"{canonico} nao e um repositorio git")
@@ -61,7 +72,7 @@ def _garantir_worktree(canonico: Path, worktree: Path, branch: str, base: str, r
         )
 
     # Diretorio sumiu mas o registro ficou: sem prune, o `add` recusa.
-    run("git worktree prune", canonico)
+    podar_worktrees(canonico, run)
 
     worktree.parent.mkdir(parents=True, exist_ok=True)
     if _branch_existe(canonico, branch, run):
@@ -77,10 +88,14 @@ def _garantir_worktree(canonico: Path, worktree: Path, branch: str, base: str, r
 def _branch_do_worktree(worktree: Path, run: Runner) -> str:
     resultado = run("git symbolic-ref --short HEAD", worktree)
     if not resultado.passou:
+        # O symbolic-ref falha tanto com HEAD destacado quanto quando o
+        # diretorio nem e repositorio git — e quem le isso esta depurando um
+        # worktree preservado, entao a causa errada custa caro.
         raise WorkspaceError(
-            f"worktree {worktree} nao esta numa branch (HEAD destacado):\n{resultado.saida}"
+            f"nao foi possivel saber a branch do worktree {worktree}: ou o HEAD esta"
+            f" destacado, ou o diretorio nao e um repositorio git:\n{resultado.saida}"
         )
-    return resultado.saida.strip()
+    return resultado.stdout.strip()
 
 
 def _branch_existe(canonico: Path, branch: str, run: Runner) -> bool:

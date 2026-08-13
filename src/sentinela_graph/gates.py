@@ -21,12 +21,15 @@ def arquivos_tocados(repo: RepoConfig, worktree: Path, *, run: Runner = run_comm
 
     `--diff-filter=d` tira os apagados: nao ha o que testar num arquivo que
     nao existe mais.
+
+    Le `stdout`, nunca `saida`: git manda `warning:` e `hint:` para o stderr
+    mesmo quando sai com 0, e a linha do aviso viraria um arquivo fantasma.
     """
     comando = f"git diff --name-only --diff-filter=d origin/{repo.base}...HEAD"
     resultado = run(comando, worktree)
     if not resultado.passou:
         raise GateError(f"nao foi possivel derivar o diff em {worktree}:\n{resultado.saida}")
-    return [linha.strip() for linha in resultado.saida.splitlines() if linha.strip()]
+    return [linha.strip() for linha in resultado.stdout.splitlines() if linha.strip()]
 
 
 def alvos_de_teste(repo: RepoConfig, worktree: Path, tocados: list[str]) -> list[str]:

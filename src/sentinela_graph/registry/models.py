@@ -5,7 +5,9 @@ onde o repo mora, como se instala, como se valida e se da para exercitar o
 app. Toda invariante daqui e checada no boot — nunca no meio do run.
 """
 
+import re
 from pathlib import Path
+from string import Formatter
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -20,6 +22,25 @@ QaMode = Literal["http", "playwright", "none"]
 OPERADORES_DE_SHELL = ("&&", "||", "|", ";", ">", "<", "`", "$(")
 
 CAMPOS_DE_COMANDO = ("install", "build", "lint", "format_check", "test", "serve")
+
+# Nomes de branch entram nos comandos de git como argv. Sem shell nao ha
+# injecao de shell, mas o parser do proprio git e alcancavel: uma branch
+# comecando com '-' vira flag (`-b --help origin/develop`) e um espaco vira
+# argumento extra. Charset conservador, dentro do que refname aceita.
+PADRAO_DE_REF = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]*$")
+
+
+def ref_valida(nome: str) -> bool:
+    """Se `nome` pode virar argumento de git sem ser lido como flag."""
+    return bool(PADRAO_DE_REF.fullmatch(nome))
+
+
+def placeholders(template: str, campo: str) -> set[str]:
+    """Nomes entre chaves de `template`, ou erro nomeando `campo`."""
+    try:
+        return {nome for _, nome, _, _ in Formatter().parse(template) if nome is not None}
+    except ValueError as erro:
+        raise ValueError(f"{campo}: {template!r} nao e um template valido: {erro}") from None
 
 
 class RepoConfig(BaseModel):
@@ -55,6 +76,10 @@ class RepoConfig(BaseModel):
             valor = getattr(self, campo)
             if valor is None:
                 continue
+            # `min_length=1` nao remove espaco: " " passaria por comando e so
+            # quebraria dentro do run_command, no meio do run.
+            if not valor.strip():
+                raise ValueError(f"{self.nome}.{campo}: comando em branco nao e um comando")
             for operador in OPERADORES_DE_SHELL:
                 if operador in valor:
                     raise ValueError(
@@ -64,13 +89,43 @@ class RepoConfig(BaseModel):
         return self
 
     @model_validator(mode="after")
+    def _base_e_um_nome_de_branch(self) -> "RepoConfig":
+        # `base` vira argv de git (`origin/{base}`). Um espaco viraria
+        # argumento extra e um '-' inicial viraria flag do proprio git.
+        if not ref_valida(self.base):
+            raise ValueError(
+                f"{self.nome}.base: {self.base!r} nao e um nome de branch valido;"
+                " use apenas letras, digitos e . _ / -, comecando por letra ou digito"
+            )
+        return self
+
+    @model_validator(mode="after")
     def _test_recebe_um_arquivo(self) -> "RepoConfig":
-        if "{arquivo}" not in self.test:
+        # Placeholder desconhecido e KeyError no meio do run, quando o gate
+        # formata o template. Aqui vira erro de boot, como o resto.
+        nomes = placeholders(self.test, f"{self.nome}.test")
+        if "arquivo" not in nomes:
             raise ValueError(f"{self.nome}.test precisa do placeholder {{arquivo}}")
+        if nomes != {"arquivo"}:
+            desconhecidos = ", ".join(sorted(nomes - {"arquivo"}))
+            raise ValueError(
+                f"{self.nome}.test: {self.test!r} usa placeholder desconhecido"
+                f" ({desconhecidos}); so existe {{arquivo}}"
+            )
+
         for padrao in self.test_patterns:
-            if "{stem}" not in padrao:
+            nomes = placeholders(padrao, f"{self.nome}.test_patterns")
+            if "stem" not in nomes:
                 raise ValueError(
                     f"{self.nome}.test_patterns: {padrao!r} precisa do placeholder {{stem}}"
+                )
+            # `{dir}` e opcional: "tests/test_{stem}.py" do official-diaries
+            # nao tem diretorio de origem e esta correto.
+            if not nomes <= {"dir", "stem"}:
+                desconhecidos = ", ".join(sorted(nomes - {"dir", "stem"}))
+                raise ValueError(
+                    f"{self.nome}.test_patterns: {padrao!r} usa placeholder desconhecido"
+                    f" ({desconhecidos}); so existem {{dir}} e {{stem}}"
                 )
         return self
 

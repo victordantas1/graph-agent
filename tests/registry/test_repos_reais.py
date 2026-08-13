@@ -10,6 +10,7 @@ import shutil
 import pytest
 
 from sentinela_graph.registry import load_registry
+from sentinela_graph.shell import run_command
 
 REGISTRY = load_registry()
 
@@ -79,7 +80,36 @@ def test_copy_untracked_existe_de_verdade_no_repo_canonico(nome):
 @pytest.mark.parametrize("nome", sorted(TABELA))
 @pytest.mark.requires_nomos
 def test_o_binario_de_cada_comando_existe_no_path(nome):
+    # Checagem barata e de falha clara quando o binario nem existe. Nao
+    # substitui o teste abaixo: `npm` no PATH nao diz nada sobre os scripts.
     cfg = REGISTRY.repo(nome)
     comandos = [cfg.install, cfg.build, cfg.lint, cfg.format_check, cfg.test, cfg.serve]
     faltando = [c for c in comandos if c and shutil.which(shlex.split(c)[0]) is None]
     assert not faltando, f"{nome}: binario ausente em {faltando}"
+
+
+@pytest.mark.parametrize("nome", sorted(TABELA))
+@pytest.mark.requires_nomos
+def test_build_lint_e_format_check_saem_com_zero_no_canonico(nome):
+    """Step 6 da Task 2 mecanizado: e este teste que licencia o `verificado em`.
+
+    O plano manda rodar `npm run build && npm run lint && npx prettier
+    --check .` a mao em cada repo antes de trocar `NAO VERIFICADO` por
+    `verificado em AAAA-MM-DD`. Enquanto isso morava so no texto do plano,
+    um operador podia rodar `-m requires_nomos`, ver verde vindo do
+    `shutil.which` e concluir que tinha verificado — sem ter executado
+    script nenhum. Verde aqui e a condicao para trocar o prefixo em `notas`;
+    vermelho aqui nomeia o comando que diverge do repo real.
+
+    Exige `install` ja rodado no canonico (node_modules/.venv presentes).
+    """
+    cfg = REGISTRY.repo(nome)
+    cwd = (REGISTRY.caminho_canonico(nome) / cfg.root).resolve()
+    assert cwd.is_dir(), f"{nome}: root {cfg.root!r} nao existe em {cwd}"
+
+    for comando in (cfg.build, cfg.lint, cfg.format_check):
+        resultado = run_command(comando, cwd)
+        assert resultado.passou, (
+            f"{nome}: `{comando}` em {cwd} saiu com {resultado.exit_code}"
+            f"{' (timeout)' if resultado.timed_out else ''}:\n{resultado.saida}"
+        )

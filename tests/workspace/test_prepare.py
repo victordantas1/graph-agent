@@ -110,6 +110,29 @@ def test_branch_ja_existente_sem_worktree_e_reaproveitada(nomos):
     assert ws.branch == BRANCH
 
 
+@pytest.mark.parametrize(
+    "branch",
+    [
+        "--help",  # vira flag do proprio git, nao nome de branch
+        "-b",
+        "com espaco",  # vira argumento extra no argv
+        "",
+        "/absoluta",
+        ".oculta",
+    ],
+)
+def test_branch_invalida_e_barrada_na_fronteira(nomos, branch):
+    # Nao ha shell, mas o parser do git le argv: `git worktree add <path> -b
+    # --help origin/develop` executa `--help`, nao cria branch nenhuma.
+    with pytest.raises(WorkspaceError, match="nome de branch valido"):
+        preparar(nomos, branch=branch)
+
+
+def test_branch_com_barra_ponto_e_traco_continua_valida(nomos):
+    ws = preparar(nomos, branch="victor/nom-716.2_final")
+    assert ws.branch == "victor/nom-716.2_final"
+
+
 def test_repo_canonico_ausente_e_erro_deterministico(nomos):
     import shutil
 

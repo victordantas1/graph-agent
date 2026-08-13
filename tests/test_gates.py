@@ -37,6 +37,23 @@ def test_arquivos_tocados_sai_do_diff_contra_a_base(tmp_path):
     assert gravador.comandos == [DIFF]
 
 
+def test_aviso_do_git_no_stderr_nao_vira_nome_de_arquivo(tmp_path):
+    # `git diff` sai com 0 e ainda assim escreve "warning: refname ... is
+    # ambiguous" no stderr. Lendo a saida unificada, o aviso viraria um
+    # arquivo fantasma — e a E9 tentaria dar `git add` nele.
+    from sentinela_graph.shell import CommandResult
+
+    def com_aviso(comando, cwd, timeout=None):
+        return CommandResult(
+            comando,
+            0,
+            stdout="app/src/pedido.ts\n",
+            stderr="warning: refname 'origin/develop' is ambiguous.\n",
+        )
+
+    assert arquivos_tocados(repo_config(), tmp_path, run=com_aviso) == ["app/src/pedido.ts"]
+
+
 def test_diff_impossivel_e_gate_error(tmp_path):
     gravador = Gravador({DIFF: (128, "fatal: bad revision")})
     with pytest.raises(GateError, match="bad revision"):

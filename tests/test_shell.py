@@ -7,6 +7,30 @@ def test_captura_stdout_e_stderr_juntos(tmp_path):
     assert "ok" in r.saida and "erro" in r.saida
 
 
+def test_os_dois_fluxos_ficam_separados(tmp_path):
+    # `saida` e a visao para humano; quem le saida como dado le `stdout`,
+    # senao um `warning:` do git vira um registro falso.
+    r = run_command("python -c \"import sys;sys.stderr.write('erro');print('ok')\"", tmp_path)
+    assert r.stdout.strip() == "ok"
+    assert r.stderr.strip() == "erro"
+
+
+def test_comando_vazio_vira_resultado_e_nao_excecao(tmp_path):
+    # shlex.split(" ") e argv vazio: sem guarda, IndexError escapa do
+    # contrato do Runner e o no do grafo morre em vez de decidir.
+    r = run_command(" ", tmp_path)
+    assert not r.passou
+    assert r.exit_code == 127
+    assert "vazio" in r.saida
+
+
+def test_aspas_desbalanceadas_viram_resultado_e_nao_excecao(tmp_path):
+    r = run_command('git commit -m "sem fechar', tmp_path)
+    assert not r.passou
+    assert r.exit_code == 127
+    assert "mal formado" in r.saida
+
+
 def test_exit_code_nao_zero_nao_passa(tmp_path):
     r = run_command('python -c "raise SystemExit(3)"', tmp_path)
     assert not r.passou

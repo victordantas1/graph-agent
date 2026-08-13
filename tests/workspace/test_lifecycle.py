@@ -85,6 +85,19 @@ def test_worktrees_registrados_ignora_o_repo_canonico(nomos):
     assert registrados[0].branch == BRANCH
 
 
+def test_aviso_no_stderr_nao_vira_worktree_registrado(nomos, tmp_path):
+    # O --porcelain e dado; o stderr do git, nao. Um aviso lido junto viraria
+    # um bloco sem `worktree ` — ou, pior, um caminho inventado.
+    porcelain = f"worktree {tmp_path / 'wt'}\nbranch refs/heads/victor/nom-716\n"
+
+    def com_aviso(comando, cwd, timeout=None):
+        return CommandResult(comando, 0, stdout=porcelain, stderr="warning: algo estranho\n")
+
+    registrados = worktrees_registrados(nomos.canonico(), run=com_aviso)
+
+    assert caminhos(registrados) == [(tmp_path / "wt").resolve()]
+
+
 def test_orfao_de_run_anterior_e_detectado(nomos):
     antigo = preparar(nomos, branch="victor/nom-700-antiga")
     preparar(nomos, branch=BRANCH)

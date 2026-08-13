@@ -16,12 +16,24 @@ TIMEOUT_PADRAO = 900
 
 @dataclass(frozen=True)
 class CommandResult:
-    """O que sobrou de um comando: codigo, saida unificada e se estourou."""
+    """O que sobrou de um comando: codigo, os dois fluxos e se estourou.
+
+    `stdout` e `stderr` ficam separados porque git escreve `warning:` e
+    `hint:` no stderr de comandos que sairam com 0: quem le a saida como
+    dado (uma lista de arquivos, um `--porcelain`) tem que ler so `stdout`,
+    ou o aviso vira um registro falso. `saida` continua sendo a visao
+    unificada, para humano — mensagem de erro e `GateResult.saida`.
+    """
 
     comando: str
     exit_code: int
-    saida: str = ""
+    stdout: str = ""
+    stderr: str = ""
     timed_out: bool = False
+
+    @property
+    def saida(self) -> str:
+        return self.stdout + self.stderr
 
     @property
     def passou(self) -> bool:
@@ -41,10 +53,23 @@ def run_command(comando: str, cwd: Path | None, timeout: int = TIMEOUT_PADRAO) -
 
     Sem `shell=True`: o registry e configuracao, nao script. O carregador ja
     recusou qualquer operador de shell.
+
+    Nada sai daqui como excecao: todo no do grafo conta com uma falha
+    deterministica chegando como `CommandResult`, inclusive quando o proprio
+    `shlex.split` recusa a linha.
     """
     try:
+        argv = shlex.split(comando)
+    except ValueError as erro:
+        # Aspas desbalanceadas: o schema deveria ter barrado, mas um comando
+        # montado em runtime (`test` com {arquivo}) tambem chega aqui.
+        return CommandResult(comando, exit_code=127, stderr=f"comando mal formado: {erro}")
+    if not argv:
+        return CommandResult(comando, exit_code=127, stderr="comando vazio: nada a executar")
+
+    try:
         proc = subprocess.run(
-            shlex.split(comando),
+            argv,
             cwd=cwd,
             capture_output=True,
             text=True,
@@ -53,10 +78,16 @@ def run_command(comando: str, cwd: Path | None, timeout: int = TIMEOUT_PADRAO) -
         )
     except FileNotFoundError as erro:
         # Comando inexistente e deterministico: retry so gastaria tempo.
-        return CommandResult(comando, exit_code=127, saida=str(erro))
+        return CommandResult(comando, exit_code=127, stderr=str(erro))
     except subprocess.TimeoutExpired as erro:
-        return CommandResult(comando, exit_code=124, saida=_texto(erro.output), timed_out=True)
-    return CommandResult(comando, proc.returncode, proc.stdout + proc.stderr)
+        return CommandResult(
+            comando,
+            exit_code=124,
+            stdout=_texto(erro.output),
+            stderr=_texto(erro.stderr),
+            timed_out=True,
+        )
+    return CommandResult(comando, proc.returncode, proc.stdout, proc.stderr)
 
 
 def run_com_retry(

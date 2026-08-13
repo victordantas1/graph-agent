@@ -26,6 +26,19 @@ class WorktreeInfo:
     prunable: bool
 
 
+def podar_worktrees(canonico: Path, run: Runner) -> None:
+    """`git worktree prune` no canonico, com o resultado ignorado de proposito.
+
+    O prune so apaga registro de worktree cujo diretorio ja nao existe. Nos
+    dois pontos em que ele e chamado, o trabalho de verdade ou ainda vai
+    acontecer (o `worktree add` logo abaixo falha sozinho, com a mensagem do
+    git, se o registro velho atrapalhar) ou ja aconteceu (o `worktree
+    remove` ja desregistrou; um prune que falhe depois disso nao muda nada).
+    Checar o codigo de saida aqui so transformaria ruido em excecao.
+    """
+    run("git worktree prune", canonico)
+
+
 def finalizar_workspace(
     registry: Registry,
     repo: RepoConfig,
@@ -51,18 +64,22 @@ def finalizar_workspace(
         raise WorkspaceError(
             f"nao foi possivel remover o worktree {workspace.worktree_path}:\n{resultado.saida}"
         )
-    run("git worktree prune", canonico)
+    podar_worktrees(canonico, run)
     return True
 
 
 def worktrees_registrados(canonico: Path, *, run: Runner = run_command) -> list[WorktreeInfo]:
-    """Worktrees que o repo canonico conhece, sem contar ele mesmo."""
+    """Worktrees que o repo canonico conhece, sem contar ele mesmo.
+
+    O `--porcelain` sai em `stdout`; um `warning:` do git no stderr nao pode
+    entrar no parse.
+    """
     resultado = run("git worktree list --porcelain", canonico)
     if not resultado.passou:
         raise WorkspaceError(f"git worktree list falhou em {canonico}:\n{resultado.saida}")
 
     infos: list[WorktreeInfo] = []
-    for bloco in resultado.saida.strip().split("\n\n"):
+    for bloco in resultado.stdout.strip().split("\n\n"):
         info = _parse_bloco(bloco)
         # O primeiro bloco e sempre o proprio repo canonico.
         if info is not None and info.path != canonico.resolve():

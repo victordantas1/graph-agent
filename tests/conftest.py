@@ -52,8 +52,10 @@ class Gravador:
     ) -> CommandResult:
         self.comandos.append(comando)
         self.cwds.append(cwd)
-        exit_code, saida = self.respostas.get(comando, (0, ""))
-        return CommandResult(comando, exit_code, saida)
+        # A resposta gravada e o stdout: e dali que sai tudo que o codigo le
+        # como dado. Quem precisa de stderr monta o CommandResult a mao.
+        exit_code, stdout = self.respostas.get(comando, (0, ""))
+        return CommandResult(comando, exit_code, stdout)
 
 
 def git(*args: str, cwd: Path) -> str:
@@ -98,7 +100,10 @@ def nomos(tmp_path: Path) -> FakeNomos:
     (canonico / "app" / "src").mkdir()
     (canonico / "app" / "src" / "pedido.ts").write_text("export const pedido = 1;\n")
     (canonico / "app" / "src" / "pedido.spec.ts").write_text("it('x', () => {});\n")
-    git("add", "-A", cwd=canonico)
+    # Caminho a caminho, como a spec manda no open_mr: `-A` varreria para
+    # dentro do commit qualquer arquivo que a fixture venha a criar antes
+    # daqui, inclusive um nao versionado de proposito.
+    git("add", "--", "app/src/pedido.ts", "app/src/pedido.spec.ts", cwd=canonico)
     git("commit", "-m", "chore: base", cwd=canonico)
     git("push", "-u", "origin", "develop", cwd=canonico)
 

@@ -86,6 +86,46 @@ def test_test_pattern_sem_stem_e_rejeitado():
         repo_config(test_patterns=["{dir}/tudo.spec.ts"])
 
 
+def test_test_pattern_sem_dir_carrega():
+    # `tests/test_{stem}.py` do official-diaries nao tem diretorio de origem
+    # e esta correto: {dir} e opcional, {stem} nao.
+    cfg = repo_config(test_patterns=["tests/test_{stem}.py"])
+    assert cfg.test_patterns == ["tests/test_{stem}.py"]
+
+
+def test_test_pattern_com_placeholder_desconhecido_e_rejeitado():
+    # Sem isso, o {style} so aparece como KeyError dentro do _candidatos, no
+    # meio do run. Invariante de registry se checa no boot.
+    with pytest.raises(ValidationError, match="desconhecido"):
+        repo_config(test_patterns=["{dir}/{style}/{stem}.spec.ts"])
+
+
+def test_test_com_placeholder_desconhecido_e_rejeitado():
+    with pytest.raises(ValidationError, match="desconhecido"):
+        repo_config(test="npx jest --config {config} {arquivo}")
+
+
+@pytest.mark.parametrize("campo", ["install", "build", "lint", "format_check", "serve"])
+def test_comando_so_com_espaco_e_rejeitado(campo):
+    # `min_length=1` nao remove espaco: " " chegaria ao shlex.split como
+    # argv vazio, no meio do run.
+    with pytest.raises(ValidationError, match="branco"):
+        repo_config(**{campo: "   "})
+
+
+@pytest.mark.parametrize("base", ["--help", "-b", "develop origin/main", "/develop", ".hmm"])
+def test_base_que_nao_e_nome_de_branch_e_rejeitada(base):
+    # `origin/{base}` vira argv de git: um '-' inicial vira flag, um espaco
+    # vira argumento extra.
+    with pytest.raises(ValidationError, match="nome de branch valido"):
+        repo_config(base=base)
+
+
+@pytest.mark.parametrize("base", ["develop", "main", "release/2.0", "v1.2_rc"])
+def test_base_valida_carrega(base):
+    assert repo_config(base=base).base == base
+
+
 @pytest.mark.parametrize(
     "comando",
     ["cd app && npm ci", "npm ci; npm run build", "npm ci | tee log", "echo $(whoami)"],

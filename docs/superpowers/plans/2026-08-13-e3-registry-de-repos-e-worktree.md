@@ -995,13 +995,13 @@ from sentinela_graph.shell import CommandResult, run_com_retry, run_command
 
 
 def test_captura_stdout_e_stderr_juntos(tmp_path):
-    r = run_command("python -c import sys;sys.stderr.write('erro');print('ok')", tmp_path)
+    r = run_command('python -c "import sys;sys.stderr.write(\'erro\');print(\'ok\')"', tmp_path)
     assert r.passou
     assert "ok" in r.saida and "erro" in r.saida
 
 
 def test_exit_code_nao_zero_nao_passa(tmp_path):
-    r = run_command("python -c raise SystemExit(3)", tmp_path)
+    r = run_command('python -c "raise SystemExit(3)"', tmp_path)
     assert not r.passou
     assert r.exit_code == 3
 
@@ -1014,14 +1014,14 @@ def test_comando_inexistente_nao_levanta(tmp_path):
 
 
 def test_timeout_marca_timed_out(tmp_path):
-    r = run_command("python -c import time;time.sleep(5)", tmp_path, timeout=1)
+    r = run_command('python -c "import time;time.sleep(5)"', tmp_path, timeout=1)
     assert r.timed_out
     assert not r.passou
 
 
 def test_roda_no_cwd_pedido(tmp_path):
     (tmp_path / "marcador.txt").write_text("x")
-    r = run_command("python -c import os;print(os.listdir())", tmp_path)
+    r = run_command('python -c "import os;print(os.listdir())"', tmp_path)
     assert "marcador.txt" in r.saida
 
 
@@ -1048,7 +1048,7 @@ def test_retry_para_no_primeiro_sucesso():
     assert respostas == []
 ```
 
-O `python -c import sys;...` sem aspas é intencional: `shlex.split` entrega `import sys;sys.stderr.write('erro');print('ok')` como um único argumento porque não há espaço depois dos `;`. Mantenha os comandos sem espaços dentro do `-c`.
+O payload do `-c` vai entre aspas duplas de propósito: `shlex.split` preserva o conteúdo entre aspas como um único argumento, inclusive os espaços (`import sys`) e as aspas simples internas (`'erro'`, `'ok'`) — que é exatamente o que `run_command` precisa, já que não usa `shell=True`. Sem as aspas, o espaço entre `import` e o nome do módulo já quebra o payload em mais de um argumento antes mesmo do primeiro `;`.
 
 - [ ] **Step 2: Rodar e ver falhar**
 
